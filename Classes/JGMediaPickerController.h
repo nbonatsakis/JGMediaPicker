@@ -27,6 +27,8 @@ typedef enum {
 //This represents the underlying UIViewController used for presenting by the delegate
 @property (nonatomic, retain, readonly) UIViewController *viewController;
 
+- (id) initWithAllowsSelectionOfNonPlayableItems:(BOOL)selectUnplayable allowsPickingMultipleItems:(BOOL)selectMultiple;
+
 @end
 
 @protocol JGPMediaPickerControllerDelegate <NSObject>

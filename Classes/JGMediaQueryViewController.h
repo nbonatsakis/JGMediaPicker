@@ -27,6 +27,8 @@ typedef enum {
 @property (nonatomic, retain) MPMediaQuery *mediaQuery;
 @property (nonatomic, assign) BOOL showsCancelButton;
 @property (nonatomic, assign) BOOL allowsSelectionOfNonPlayableItem;
+@property (nonatomic, assign) BOOL allowsPickingMultipleItems;
+@property (nonatomic, assign) NSMutableDictionary* selectedMediaItems;
 
 @end
 
@@ -35,5 +37,6 @@ typedef enum {
 
 - (void)jgMediaQueryViewController:(JGMediaQueryViewController *)mediaQueryViewController didPickMediaItems:(MPMediaItemCollection *)mediaItemCollection selectedItem:(MPMediaItem *)selectedItem;
 - (void)jgMediaQueryViewControllerDidCancel:(JGMediaQueryViewController *)mediaPicker;
+- (void)jgMediaQueryViewControllerDidFinish:(JGMediaQueryViewController *)mediaPicker;
 
 @end

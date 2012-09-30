@@ -17,6 +17,7 @@
 @property (retain, nonatomic) IBOutlet UILabel *albumTitleLabel;
 @property (retain, nonatomic) IBOutlet UILabel *albumReleaseDateLabel;
 @property (retain, nonatomic) IBOutlet UILabel *albumTrackCountTimeLabel;
+@property (nonatomic, retain) IBOutlet UIView* upperView;
 
 @property (retain, nonatomic) id delegate;
 @property (retain, nonatomic) MPMediaItemCollection *albumCollection;
@@ -25,6 +26,8 @@
 
 @property (nonatomic, assign) BOOL showsCancelButton;
 @property (nonatomic, assign) BOOL allowsSelectionOfNonPlayableItem;
+@property (nonatomic, assign) BOOL allowsPickingMultipleItems;
+@property (nonatomic, assign) NSMutableDictionary* selectedMediaItems;
 
 @end
 
@@ -32,5 +35,6 @@
 @optional
 
 - (void)jgAlbumViewController:(JGAlbumViewController *)albumViewController didPickMediaItems:(MPMediaItemCollection *)mediaItemCollection selectedItem:(MPMediaItem *)selectedItem;
+- (void)jgAlbumViewControllerDidFinish:(JGAlbumViewController*)albumController;
 
 @end

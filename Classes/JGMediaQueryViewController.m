@@ -44,6 +44,8 @@
 @synthesize mediaQuery;
 @synthesize showsCancelButton;
 @synthesize allowsSelectionOfNonPlayableItem;
+@synthesize allowsPickingMultipleItems;
+@synthesize selectedMediaItems;
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
     self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
@@ -113,8 +115,18 @@
     }
 }
 
+- (void) notifyDelegateOfDone {
+    if ([self.delegate respondsToSelector:@selector(jgMediaQueryViewControllerDidFinish:)]) {
+        [self.delegate jgMediaQueryViewControllerDidFinish:self];
+    }
+}
+
 - (void)cancelButtonTap:(id)sender {
     [self notifyDelegateOfCancellation];
+}
+
+- (void) doneButtonTap:(id)sender {
+    [self notifyDelegateOfDone];
 }
 
 - (void)mediaLibraryDidChange:(NSNotification *)notification {
@@ -126,9 +138,29 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    if(self.showsCancelButton) {
+    if (self.allowsPickingMultipleItems) {
+        if ([[self.navigationController.viewControllers objectAtIndex:0] isEqual:self]) {
+            self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(cancelButtonTap:)];
+        }
+        
+        self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(doneButtonTap:)];
+    
+        if (self.queryType == JGMediaQueryTypeSongs) {
+            self.itemTableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0.f, 0.f, self.view.bounds.size.width, 74.f)];
+            self.itemTableView.tableHeaderView.userInteractionEnabled = YES;
+            
+            UIButton* addAllButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+            addAllButton.frame = CGRectMake(10.f, 15.f, self.view.bounds.size.width - 20.f, 44.f);
+            [addAllButton setTitle:@"Add all items" forState:UIControlStateNormal];
+            [addAllButton.titleLabel setFont:[UIFont boldSystemFontOfSize:25.f]];
+            [addAllButton addTarget:self action:@selector(addAllButtonTap:) forControlEvents:UIControlEventTouchUpInside];
+            addAllButton.userInteractionEnabled = YES;
+            addAllButton.enabled = YES;
+            [self.itemTableView.tableHeaderView addSubview:addAllButton];
+        }
+    } else if(self.showsCancelButton) {
         self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(cancelButtonTap:)];
-    }
+    } 
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaLibraryDidChange:) name:MPMediaLibraryDidChangeNotification object:nil];
     [[MPMediaLibrary defaultMediaLibrary] beginGeneratingLibraryChangeNotifications];
@@ -150,6 +182,16 @@
 }
 
 #pragma mark - Table view data source
+
+- (void) addAllButtonTap:(id)sender {
+    for (MPMediaItemCollection* mediaItemCollection in self.items) {
+        MPMediaItem *mediaItem = [mediaItemCollection representativeItem];
+        NSString*pId = [mediaItem valueForProperty:MPMediaItemPropertyPersistentID];
+        [self.selectedMediaItems setObject:mediaItem forKey:pId];
+        [[self.selectedMediaItems objectForKey:@"mediaSet"] addObject:mediaItem];
+    }
+    [self.itemTableView reloadData];
+}
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     NSInteger numberOfSections = self.itemSections.count;    
@@ -286,6 +328,14 @@
                 }
             }
             
+            NSString*pId = [mediaItem valueForProperty:MPMediaItemPropertyPersistentID];
+            if (self.allowsPickingMultipleItems && [self.selectedMediaItems objectForKey:pId]) {
+                for (UILabel *label in [NSArray arrayWithObjects:[cell textLabel], [cell detailTextLabel], nil]) {
+                    label.textColor = [UIColor lightGrayColor];
+                }
+                cell.accessoryType = UITableViewCellAccessoryCheckmark;
+            }
+            
         }break;
             
         default:
@@ -345,6 +395,8 @@
             playlistViewController.queryType = JGMediaQueryTypeSongs;
             playlistViewController.mediaQuery = playlistQuery;
             playlistViewController.delegate = self;
+            playlistViewController.selectedMediaItems = self.selectedMediaItems;
+            playlistViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
             viewController = playlistViewController;
         }break;
             
@@ -363,6 +415,8 @@
             albumsViewController.queryType = JGMediaQueryTypeAlbums;
             albumsViewController.mediaQuery = albumsQuery;
             albumsViewController.delegate = self;
+            albumsViewController.selectedMediaItems = self.selectedMediaItems;
+            albumsViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
             viewController = albumsViewController;
         }break;
             
@@ -377,6 +431,19 @@
                 }
                 MPMediaItemCollection *mediaItemCollection = [MPMediaItemCollection collectionWithItems:songsArray];
                 [self.delegate jgMediaQueryViewController:self didPickMediaItems:mediaItemCollection selectedItem:selectedMediaItem];
+                
+                // multi select
+                if (self.allowsPickingMultipleItems) {
+                    NSString*pId = [selectedMediaItem valueForProperty:MPMediaItemPropertyPersistentID];
+                    [self.selectedMediaItems setObject:selectedMediaItem forKey:pId];
+                    [[self.selectedMediaItems objectForKey:@"mediaSet"] addObject:selectedMediaItem];
+                    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+                    UITableViewCell* cell = [tableView cellForRowAtIndexPath:indexPath];
+                    for (UILabel *label in [NSArray arrayWithObjects:[cell textLabel], [cell detailTextLabel], nil]) {
+                        label.textColor = [UIColor lightGrayColor];
+                    }
+                    cell.accessoryType = UITableViewCellAccessoryCheckmark;
+                }
             }
         }break;
             
@@ -385,6 +452,8 @@
             JGAlbumViewController *albumViewController = [[JGAlbumViewController alloc] initWithNibName:@"JGAlbumViewController" bundle:nil];
             albumViewController.showsCancelButton = YES;
             albumViewController.allowsSelectionOfNonPlayableItem = self.allowsSelectionOfNonPlayableItem;
+            albumViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
+            albumViewController.selectedMediaItems = self.selectedMediaItems;
             MPMediaItemCollection *albumCollection = [[self items] objectAtIndex:itemIndex];
             albumViewController.delegate = self;
             albumViewController.albumCollection = albumCollection;
@@ -414,9 +483,17 @@
     }
 }
 
+- (void) jgMediaQueryViewControllerDidFinish:(JGMediaQueryViewController*)mediaPicker {
+    [self notifyDelegateOfDone];
+}
+
 #pragma mark - JGAlbumViewControllerDelegate callback
 - (void)jgAlbumViewController:(JGAlbumViewController *)albumViewController didPickMediaItems:(MPMediaItemCollection *)mediaItemCollection selectedItem:(MPMediaItem *)selectedItem {
     [self notifyDelegateOfSelection:mediaItemCollection selectedItem:selectedItem];
+}
+
+- (void) jgAlbumViewControllerDidFinish:(JGAlbumViewController*)albumController {
+    [self notifyDelegateOfDone];
 }
 
 @end

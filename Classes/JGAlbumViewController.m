@@ -37,6 +37,8 @@
 @synthesize albumCollection;
 @synthesize showsCancelButton;
 @synthesize allowsSelectionOfNonPlayableItem;
+@synthesize upperView;
+@synthesize allowsPickingMultipleItems;
 
 - (id)initWithStyle:(UITableViewStyle)style
 {
@@ -61,10 +63,26 @@
 {
     [super viewDidLoad];
     
-    if(self.showsCancelButton) {
+    if (self.allowsPickingMultipleItems) {
+        self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(doneButtonTap:)];
+        
+        self.upperView.frame = CGRectMake(0.f, 0.f, self.upperView.bounds.size.width, self.upperView.bounds.size.height + 74.f);
+        
+        UIButton* addAllButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+        addAllButton.frame = CGRectMake(10.f, self.upperView.bounds.size.height - 59.f, self.view.bounds.size.width - 20.f, 44.f);
+        [addAllButton setTitle:@"Add all items" forState:UIControlStateNormal];
+        [addAllButton.titleLabel setFont:[UIFont boldSystemFontOfSize:25.f]];
+        [addAllButton addTarget:self action:@selector(addAllButtonTap:) forControlEvents:UIControlEventTouchUpInside];
+        addAllButton.userInteractionEnabled = YES;
+        addAllButton.enabled = YES;
+        [self.upperView addSubview:addAllButton];
+        NSLog(@"U:%@ B:%@", self.upperView, addAllButton);
+    } else if(self.showsCancelButton) {
         self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self.delegate action:@selector(notifyDelegateOfCancellation)];
     }
 
+    self.tableView.tableHeaderView = self.upperView;
+    
     [[self tableView] setSeparatorColor:kSeparatorColor];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(mediaLibraryDidChange:) name:MPMediaLibraryDidChangeNotification object:nil];
@@ -90,6 +108,22 @@
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
     return YES;
+}
+
+- (void) addAllButtonTap:(id)sender {
+    for (MPMediaItem* mediaItem in self.albumCollection.items) {
+        NSString*pId = [mediaItem valueForProperty:MPMediaItemPropertyPersistentID];
+        [self.selectedMediaItems setObject:mediaItem forKey:pId];
+        [[self.selectedMediaItems objectForKey:@"mediaSet"] addObject:mediaItem];
+    }
+    [self.tableView reloadData];
+}
+
+
+- (void) notifyDelegateOfDone {
+    if ([self.delegate respondsToSelector:@selector(jgAlbumViewControllerDidFinish:)]) {
+        [self.delegate jgAlbumViewControllerDidFinish:self];
+    }
 }
 
 - (void)updateUI {
@@ -151,7 +185,17 @@
         cell.trackNameLabel.textColor = [UIColor lightGrayColor];
         cell.userInteractionEnabled = NO;
     }
-    //make odd rows gray    
+    
+    NSString*pId = [mediaItem valueForProperty:MPMediaItemPropertyPersistentID];
+    if (self.allowsPickingMultipleItems && [self.selectedMediaItems objectForKey:pId]) {
+        cell.trackNumberLabel.textColor = [UIColor lightGrayColor];
+        cell.trackNameLabel.textColor = [UIColor lightGrayColor];
+        cell.trackLengthLabel.textColor = [UIColor lightGrayColor];
+        cell.accessoryType = UITableViewCellAccessoryCheckmark;
+    }
+
+    
+    //make odd rows gray
     cell.backgroundView.backgroundColor = indexPath.row % 2 != 0 ? kGrayBackgroundColor : [UIColor whiteColor];
 
     return cell;
@@ -161,6 +205,21 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     MPMediaItem *selectedItem = [self.albumCollection.items objectAtIndex:indexPath.row];
+    
+    // multi select
+    if (self.allowsPickingMultipleItems) {
+        NSString*pId = [selectedItem valueForProperty:MPMediaItemPropertyPersistentID];
+        [self.selectedMediaItems setObject:selectedItem forKey:pId];
+        [[self.selectedMediaItems objectForKey:@"mediaSet"] addObject:selectedItem];
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        JGAlbumTrackTableViewCell* cell = (JGAlbumTrackTableViewCell*) [tableView cellForRowAtIndexPath:indexPath];
+        cell.trackNumberLabel.textColor = [UIColor lightGrayColor];
+        cell.trackNameLabel.textColor = [UIColor lightGrayColor];
+        cell.trackLengthLabel.textColor = [UIColor lightGrayColor];
+        cell.accessoryType = UITableViewCellAccessoryCheckmark;
+    }
+
+    
     if([self.delegate respondsToSelector:@selector(jgAlbumViewController:didPickMediaItems:selectedItem:)]) {
         [self.delegate jgAlbumViewController:self didPickMediaItems:self.albumCollection selectedItem:selectedItem];
     }

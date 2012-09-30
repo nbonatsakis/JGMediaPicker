@@ -20,6 +20,11 @@
 //Controls whether non-playable items are selectable.
 @property (nonatomic, assign) BOOL allowsSelectionOfNonPlayableItem;
 
+//Controls whether or not the user can select multiple tracks
+@property (nonatomic, assign) BOOL allowsPickingMultipleItems;
+
+@property (nonatomic, retain) NSMutableDictionary* selectedMediaItems;
+
 - (void)setupViewControllers;
 - (void)updateTabBarControllerIndex;
 
@@ -32,12 +37,31 @@
 @synthesize delegate;
 @synthesize selectedTabIndex;
 @synthesize allowsSelectionOfNonPlayableItem;
+@synthesize allowsPickingMultipleItems;
+@synthesize selectedMediaItems;
+
+- (id) initWithAllowsSelectionOfNonPlayableItems:(BOOL)selectNonPlayable allowsPickingMultipleItems:(BOOL)pickMultiple {
+    self = [super init];
+    if(self) {
+        selectedTabIndex = JGMediaPickerTabIndex_Artists;
+        allowsSelectionOfNonPlayableItem = selectNonPlayable;
+        allowsPickingMultipleItems = pickMultiple;
+        self.selectedMediaItems = [NSMutableDictionary dictionary];
+        [self.selectedMediaItems setObject:[NSMutableSet set] forKey:@"mediaSet"];
+        [self setupViewControllers];
+    }
+    return self;
+
+}
 
 - (id)init {
     self = [super init];
     if(self) {
         selectedTabIndex = JGMediaPickerTabIndex_Artists;
         allowsSelectionOfNonPlayableItem = YES;
+        allowsPickingMultipleItems = NO;
+        self.selectedMediaItems = [NSMutableDictionary dictionary];
+        [self.selectedMediaItems setObject:[NSMutableSet set] forKey:@"mediaSet"];
         [self setupViewControllers];
     }
     return self;
@@ -52,6 +76,8 @@
     playlistsViewController.delegate = self;
     playlistsViewController.showsCancelButton = YES;
     playlistsViewController.allowsSelectionOfNonPlayableItem = self.allowsSelectionOfNonPlayableItem;
+    playlistsViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
+    playlistsViewController.selectedMediaItems = self.selectedMediaItems;
     UINavigationController *playlistsNavigationController = [[UINavigationController alloc] initWithRootViewController:playlistsViewController];
     
     JGMediaQueryViewController *artistsViewController = [[JGMediaQueryViewController alloc] initWithNibName:@"JGMediaQueryViewController" bundle:nil];
@@ -62,6 +88,8 @@
     artistsViewController.delegate = self;
     artistsViewController.showsCancelButton = YES;
     artistsViewController.allowsSelectionOfNonPlayableItem = self.allowsSelectionOfNonPlayableItem;
+    artistsViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
+    artistsViewController.selectedMediaItems = self.selectedMediaItems;
     UINavigationController *artistsNavigationController = [[UINavigationController alloc] initWithRootViewController:artistsViewController];
     
     JGMediaQueryViewController *albumsViewController = [[JGMediaQueryViewController alloc] initWithNibName:@"JGMediaQueryViewController" bundle:nil];
@@ -72,6 +100,8 @@
     albumsViewController.delegate = self;
     albumsViewController.showsCancelButton = YES;
     albumsViewController.allowsSelectionOfNonPlayableItem = self.allowsSelectionOfNonPlayableItem;
+    albumsViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
+    albumsViewController.selectedMediaItems = self.selectedMediaItems;
     UINavigationController *albumsNavigationController = [[UINavigationController alloc] initWithRootViewController:albumsViewController];
     
     JGMediaQueryViewController *songsViewController = [[JGMediaQueryViewController alloc] initWithNibName:@"JGMediaQueryViewController" bundle:nil];
@@ -82,6 +112,8 @@
     songsViewController.delegate = self;
     songsViewController.showsCancelButton = YES;
     songsViewController.allowsSelectionOfNonPlayableItem = self.allowsSelectionOfNonPlayableItem;
+    songsViewController.allowsPickingMultipleItems = self.allowsPickingMultipleItems;
+    songsViewController.selectedMediaItems = self.selectedMediaItems;
     UINavigationController *songsNavigationController = [[UINavigationController alloc] initWithRootViewController:songsViewController];
 
     self.tabBarController = [[UITabBarController alloc] init];
@@ -110,7 +142,7 @@
 }
 
 - (void)jgMediaQueryViewController:(JGMediaQueryViewController *)mediaQueryViewController didPickMediaItems:(MPMediaItemCollection *)mediaItemCollection selectedItem:(MPMediaItem *)selectedItem {
-    if([self.delegate respondsToSelector:@selector(jgMediaPicker:didPickMediaItems:selectedItem:)]) {
+    if(!self.allowsPickingMultipleItems && [self.delegate respondsToSelector:@selector(jgMediaPicker:didPickMediaItems:selectedItem:)]) {
         [self.delegate jgMediaPicker:self didPickMediaItems:mediaItemCollection selectedItem:selectedItem];
     }
 }
@@ -118,6 +150,15 @@
 - (void)jgMediaQueryViewControllerDidCancel:(JGMediaQueryViewController *)mediaPicker {
     if([self.delegate respondsToSelector:@selector(jgMediaPickerDidCancel:)]) {
         [self.delegate jgMediaPickerDidCancel:self];
+    }
+}
+
+- (void)jgMediaQueryViewControllerDidFinish:(JGMediaQueryViewController *)mediaPicker {
+    NSSet* mediaSet = [self.selectedMediaItems objectForKey:@"mediaSet"];
+    MPMediaItemCollection* c = [MPMediaItemCollection collectionWithItems:[mediaSet allObjects]];
+    MPMediaItem* rep = [c representativeItem];
+    if([self.delegate respondsToSelector:@selector(jgMediaPicker:didPickMediaItems:selectedItem:)]) {
+        [self.delegate jgMediaPicker:self didPickMediaItems:c selectedItem:rep];
     }
 }
 
