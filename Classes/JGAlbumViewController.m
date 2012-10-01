@@ -112,6 +112,10 @@
 
 - (void) addAllButtonTap:(id)sender {
     for (MPMediaItem* mediaItem in self.albumCollection.items) {
+        if (!self.allowsSelectionOfNonPlayableItem && ![mediaItem isPlayable]) {
+            continue;
+        }
+
         NSString*pId = [mediaItem valueForProperty:MPMediaItemPropertyPersistentID];
         [self.selectedMediaItems setObject:mediaItem forKey:pId];
         [[self.selectedMediaItems objectForKey:@"mediaSet"] addObject:mediaItem];
