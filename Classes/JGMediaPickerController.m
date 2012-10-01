@@ -155,10 +155,17 @@
 
 - (void)jgMediaQueryViewControllerDidFinish:(JGMediaQueryViewController *)mediaPicker {
     NSSet* mediaSet = [self.selectedMediaItems objectForKey:@"mediaSet"];
-    MPMediaItemCollection* c = [MPMediaItemCollection collectionWithItems:[mediaSet allObjects]];
-    MPMediaItem* rep = [c representativeItem];
+    NSArray* items = [mediaSet allObjects];
+    MPMediaItemCollection* col = nil;
+    MPMediaItem* rep = nil;
+    
+    if ([items count] > 0) {
+        col = [MPMediaItemCollection collectionWithItems:[mediaSet allObjects]];
+        rep = [col representativeItem];
+    }
+    
     if([self.delegate respondsToSelector:@selector(jgMediaPicker:didPickMediaItems:selectedItem:)]) {
-        [self.delegate jgMediaPicker:self didPickMediaItems:c selectedItem:rep];
+        [self.delegate jgMediaPicker:self didPickMediaItems:col selectedItem:rep];
     }
 }
 
