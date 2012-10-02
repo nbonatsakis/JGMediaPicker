@@ -110,6 +110,12 @@
     return YES;
 }
 
+- (void) doneButtonTap:(id)sender {
+    if ([self.delegate respondsToSelector:@selector(jgAlbumViewControllerDidFinish:)]) {
+        [self.delegate jgAlbumViewControllerDidFinish:self];
+    }
+}
+
 - (void) addAllButtonTap:(id)sender {
     for (MPMediaItem* mediaItem in self.albumCollection.items) {
         if (!self.allowsSelectionOfNonPlayableItem && ![mediaItem isPlayable]) {
